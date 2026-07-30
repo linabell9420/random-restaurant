@@ -276,31 +276,27 @@
       return 'sitdown';
     }
 
-    async function fetchRealRestaurants(lat, lng, miles) {
-      const radius = Math.round(miles * 1609.34);
-      const url = `${PROXY_URL}?lat=${lat}&lng=${lng}&radius=${radius}`;
-
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Proxy request failed');
-      const data = await res.json();
-
-      if (data.error) throw new Error(data.error);
-
-      return (data.elements || []).map(el => {
-        if (!el.lat || !el.lon) return null;
-        const tags = el.tags || {};
-        const name = tags.name || tags['name:en'];
-        if (!name) return null;
-        return {
-          name,
-          lat: el.lat,
-          lng: el.lon,
-          cuisine: detectCuisine(tags),
-          style: detectStyle(tags),
-          address: [tags['addr:housenumber'], tags['addr:street'], tags['addr:city']].filter(Boolean).join(' ') || ''
-        };
-      }).filter(Boolean);
-    }
+     async function fetchRealRestaurants(lat, lng, miles) {
+    const radius = Math.round(miles * 1609.34);
+    const url = `${PROXY_URL}?lat=${lat}&lng=${lng}&radius=${radius}`;
+  
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Proxy request failed');
+    const data = await res.json();
+  
+    if (data.error) throw new Error(data.error + (data.message ? ': ' + data.message : ''));
+  
+    return (data.restaurants || []).map(r => ({
+      name: r.name,
+      lat: r.lat,
+      lng: r.lng,
+      address: r.address || '',
+      rating: r.rating,
+      price: r.price || '',
+      cuisine: r.cuisine || 'other',
+      style: r.style || 'sitdown'
+    }));
+  }
 
     function matchesFilters(r) {
       if (selectedStyle === 'fast' && r.style !== 'fast') return false;
