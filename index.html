@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  
+  <!-- PWA & iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="What to Eat" />
+  <meta name="theme-color" content="#e85d04" />
+  <meta name="description" content="Randomly pick a nearby restaurant" />
+  
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  
+  <title>What to Eat Today?</title>
+  
+  <style>
+    :root {
+      --bg: #f7f3ef;
+      --card: #ffffff;
+      --primary: #e85d04;
+      --text: #1f1f1f;
+      --muted: #6b6b6b;
+      --border: #ebe4dc;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #f7f3ef 0%, #f0e9e1 100%);
+      color: var(--text);
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 20px 16px 50px;
+      padding-top: max(20px, env(safe-area-inset-top));
+      padding-bottom: max(50px, env(safe-area-inset-bottom));
+      line-height: 1.5;
+    }
+    .container { max-width: 420px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 24px; }
+    header h1 {
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+      background: linear-gradient(135deg, #e85d04, #d00000);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    header p { color: var(--muted); font-size: 0.95rem; }
+    .card {
+      background: var(--card);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.05);
+      margin-bottom: 14px;
+      border: 1px solid var(--border);
+    }
+    .section-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .distance-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip, .distance-btn {
+      border: 1.5px solid var(--border);
+      background: #fff;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--text);
+      transition: all 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .distance-btn {
+      border-radius: 12px;
+      padding: 11px 0;
+      text-align: center;
+    }
+    .chip.active, .distance-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(232, 93, 4, 0.25);
+    }
+    .slider-area { margin-top: 4px; }
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .slider-label { font-size: 0.88rem; color: var(--muted); }
+    .current-distance { font-size: 1.15rem; font-weight: 700; color: var(--primary); }
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #e8e0d6;
+      border-radius: 3px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      background: var(--primary);
+      border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .slider-marks {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 15px 20px;
+      border: none;
+      border-radius: 14px;
+      font-size: 1.08rem;
+      font-weight: 700;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #e85d04, #d00000);
+      color: white;
+      box-shadow: 0 6px 18px rgba(232, 93, 4, 0.3);
+    }
+    .btn-primary:disabled {
+      background: #ccc;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #f3ede6;
+      color: var(--text);
+      margin-top: 10px;
+    }
+    .result {
+      display: none;
+      animation: fadeInUp 0.4s ease;
+      border: 2px solid #ffe0c2;
+      background: linear-gradient(180deg, #fffdf9 0%, #fff 100%);
+    }
+    .result.show { display: block; }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .restaurant-name {
+      font-size: 1.35rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+      line-height: 1.3;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .meta span {
+      background: #f7f1ea;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+    .address {
+      font-size: 0.92rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .maps-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #4285f4;
+      color: white;
+      text-decoration: none;
+      padding: 11px 18px;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    .status {
+      text-align: center;
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .status.show { display: block; }
+    .status.loading { background: #fff3e0; color: #e65100; }
+    .status.error { background: #fce8e6; color: #c5221f; }
+    .status.success { background: #e6f4ea; color: #137333; }
+    footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    #confetti-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="confetti-canvas"></canvas>
+
+  <div class="container">
+    <header>
+      <h1>What to Eat Today?</h1>
+      <p>Let fate decide for you</p>
+    </header>
+
+    <div class="card">
+      <div class="section-title">Distance Range</div>
+      <div class="distance-grid">
+        <button class="distance-btn" data-miles="1">1 mi</button>
+        <button class="distance-btn active" data-miles="2">2 mi</button>
+        <button class="distance-btn" data-miles="5">5 mi</button>
+        <button class="distance-btn" data-miles="8">8 mi</button>
+      </div>
+      <div class="slider-area">
+        <div class="slider-header">
+          <span class="slider-label">Custom</span>
+          <span class="current-distance" id="distance-display">2.0 mi</span>
+        </div>
+        <input type="range" id="distance-slider" min="0.5" max="12" step="0.5" value="2" />
+        <div class="slider-marks">
+          <span>0.5</span><span>4</span><span>8</span><span>12</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Meal Style</div>
+      <div class="chip-grid" id="style-filters">
+        <button class="chip active" data-style="any">Any</button>
+        <button class="chip" data-style="fast">Fast Food</button>
+        <button class="chip" data-style="sitdown">Sit-down only</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Cuisine</div>
+      <div class="chip-grid" id="cuisine-filters">
+        <button class="chip active" data-cuisine="any">Any</button>
+        <button class="chip" data-cuisine="chinese">Chinese</button>
+        <button class="chip" data-cuisine="japanese">Japanese</button>
+        <button class="chip" data-cuisine="italian">Italian</button>
+        <button class="chip" data-cuisine="mexican">Mexican</button>
+        <button class="chip" data-cuisine="indian">Indian</button>
+        <button class="chip" data-cuisine="thai">Thai / Vietnamese</button>
+        <button class="chip" data-cuisine="american">American</button>
+        <button class="chip" data-cuisine="cafe">Cafe</button>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="main-btn" onclick="startRandom()">
+      🎲 Pick a Restaurant
+    </button>
+
+    <div id="status" class="status"></div>
+
+    <div id="result" class="card result">
+      <div class="restaurant-name" id="res-name"></div>
+      <div class="meta">
+        <span id="res-distance"></span>
+        <span id="res-cuisine"></span>
+        <span id="res-style"></span>
+      </div>
+      <div class="address" id="res-address"></div>
+      <a id="res-maps" class="maps-btn" href="#" target="_blank" rel="noopener">
+        📍 Open in Google Maps
+      </a>
+      <button class="btn btn-secondary" style="margin-top:14px;" onclick="startRandom()">
+        Pick Another One
+      </button>
+    </div>
+
+    <footer>
+      Optimized for Edison area · Distance from your real location
+    </footer>
+  </div>
+
+  <script>
+    let selectedMiles = 2;
+    let selectedStyle = 'any';
+    let selectedCuisine = 'any';
+
+    // Real restaurants around Edison / Metuchen / Iselin (more accurate list)
+    const LOCAL_RESTAURANTS = [
+      { name: "Din Tai Fung", cuisine: "chinese", style: "sitdown", address: "Menlo Park Mall, Edison, NJ", lat: 40.5478, lng: -74.3352 },
+      { name: "Shu Hai Hot Pot", cuisine: "chinese", style: "sitdown", address: "1655 Oak Tree Rd, Edison, NJ", lat: 40.5284, lng: -74.3491 },
+      { name: "Hunan Taste", cuisine: "chinese", style: "sitdown", address: "Metuchen, NJ", lat: 40.5435, lng: -74.3610 },
+      { name: "Bamboo Garden", cuisine: "chinese", style: "sitdown", address: "Edison, NJ", lat: 40.5340, lng: -74.3475 },
+      { name: "Panda Express", cuisine: "chinese", style: "fast", address: "Edison, NJ", lat: 40.5405, lng: -74.3410 },
+
+      { name: "Sushi Lounge", cuisine: "japanese", style: "sitdown", address: "Metuchen, NJ", lat: 40.5432, lng: -74.3628 },
+      { name: "Sakura Japanese", cuisine: "japanese", style: "sitdown", address: "Edison, NJ", lat: 40.5378, lng: -74.3515 },
+      { name: "Fuji Sushi", cuisine: "japanese", style: "sitdown", address: "Metuchen, NJ", lat: 40.5418, lng: -74.3645 },
+
+      { name: "Pho Today", cuisine: "thai", style: "sitdown", address: "Iselin, NJ", lat: 40.5752, lng: -74.3148 },
+      { name: "Thai Palace", cuisine: "thai", style: "sitdown", address: "Edison area", lat: 40.5580, lng: -74.3280 },
+
+      { name: "Moghul Restaurant", cuisine: "indian", style: "sitdown", address: "Edison, NJ", lat: 40.5265, lng: -74.3440 },
+      { name: "Indian Taj", cuisine: "indian", style: "sitdown", address: "Iselin, NJ", lat: 40.5695, lng: -74.3195 },
+
+      { name: "Olive Garden", cuisine: "italian", style: "sitdown", address: "Edison, NJ", lat: 40.5458, lng: -74.3310 },
+      { name: "Pizza Hut", cuisine: "italian", style: "fast", address: "Edison, NJ", lat: 40.5315, lng: -74.3680 },
+      { name: "Domino's", cuisine: "italian", style: "fast", address: "Edison, NJ", lat: 40.5220, lng: -74.3590 },
+
+      { name: "Chipotle", cuisine: "mexican", style: "fast", address: "Edison, NJ", lat: 40.5310, lng: -74.3585 },
+      { name: "Taco Bell", cuisine: "mexican", style: "fast", address: "Edison, NJ", lat: 40.5195, lng: -74.3780 },
+
+      { name: "The Cheesecake Factory", cuisine: "american", style: "sitdown", address: "Menlo Park Mall", lat: 40.5482, lng: -74.3345 },
+      { name: "Shake Shack", cuisine: "american", style: "fast", address: "Near Edison", lat: 40.5490, lng: -74.3220 },
+      { name: "Five Guys", cuisine: "american", style: "fast", address: "Edison, NJ", lat: 40.5335, lng: -74.3540 },
+      { name: "Panera Bread", cuisine: "american", style: "fast", address: "Edison, NJ", lat: 40.5260, lng: -74.3695 },
+      { name: "McDonald's", cuisine: "american", style: "fast", address: "Edison, NJ", lat: 40.5360, lng: -74.3635 },
+
+      { name: "Starbucks", cuisine: "cafe", style: "fast", address: "Edison, NJ", lat: 40.5295, lng: -74.3565 },
+      { name: "Dunkin'", cuisine: "cafe", style: "fast", address: "Edison, NJ", lat: 40.5235, lng: -74.3710 }
+    ];
+
+    // UI
+    const slider = document.getElementById('distance-slider');
+    const distanceDisplay = document.getElementById('distance-display');
+
+    document.querySelectorAll('.distance-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.distance-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedMiles = parseFloat(btn.dataset.miles);
+        slider.value = selectedMiles;
+        updateDistanceDisplay();
+      });
+    });
+
+    slider.addEventListener('input', () => {
+      selectedMiles = parseFloat(slider.value);
+      updateDistanceDisplay();
+      document.querySelectorAll('.distance-btn').forEach(b => b.classList.remove('active'));
+    });
+
+    function updateDistanceDisplay() {
+      distanceDisplay.textContent = selectedMiles.toFixed(1) + ' mi';
+    }
+
+    document.querySelectorAll('#style-filters .chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#style-filters .chip').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedStyle = btn.dataset.style;
+      });
+    });
+
+    document.querySelectorAll('#cuisine-filters .chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#cuisine-filters .chip').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedCuisine = btn.dataset.cuisine;
+      });
+    });
+
+    function showStatus(msg, type = 'loading') {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = `status show ${type}`;
+    }
+
+    function hideStatus() {
+      document.getElementById('status').className = 'status';
+    }
+
+    function getLocation() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('Geolocation not supported'));
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          err => reject(err),
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      });
+    }
+
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const R = 3958.8;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 +
+                Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) *
+                Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function matchesFilters(r) {
+      if (selectedStyle === 'fast' && r.style !== 'fast') return false;
+      if (selectedStyle === 'sitdown' && r.style !== 'sitdown') return false;
+      if (selectedCuisine !== 'any' && r.cuisine !== selectedCuisine) return false;
+      return true;
+    }
+
+    function launchConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      const colors = ['#e85d04', '#d00000', '#ffbe0b', '#3a86ff', '#8338ec', '#fb5607'];
+      const particles = [];
+      for (let i = 0; i < 100; i++) {
+        particles.push({
+          x: canvas.width / 2, y: canvas.height / 3,
+          vx: (Math.random() - 0.5) * 12, vy: Math.random() * -10 - 3,
+          size: Math.random() * 6 + 3, color: colors[Math.floor(Math.random() * colors.length)],
+          life: 80 + Math.random() * 40, gravity: 0.15 + Math.random() * 0.08
+        });
+      }
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = false;
+        particles.forEach(p => {
+          if (p.life <= 0) return;
+          alive = true;
+          p.x += p.vx; p.y += p.vy; p.vy += p.gravity; p.life--; p.size *= 0.985;
+          ctx.globalAlpha = Math.max(0, p.life / 80);
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, Math.max(0, p.size), 0, Math.PI * 2);
+          ctx.fill();
+        });
+        if (alive) requestAnimationFrame(animate);
+        else ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      animate();
+    }
+
+    async function startRandom() {
+      const btn = document.getElementById('main-btn');
+      btn.disabled = true;
+      document.getElementById('result').classList.remove('show');
+      hideStatus();
+
+      try {
+        showStatus('Getting your location…', 'loading');
+        const pos = await getLocation();
+
+        showStatus('Picking a restaurant…', 'loading');
+
+        let restaurants = LOCAL_RESTAURANTS
+          .map(r => ({
+            ...r,
+            distance: getDistance(pos.lat, pos.lng, r.lat, r.lng)
+          }))
+          .filter(r => r.distance <= selectedMiles)
+          .filter(matchesFilters);
+
+        if (restaurants.length === 0) {
+          showStatus('No restaurants match your filters in this range. Try larger distance or different filters.', 'error');
+          btn.disabled = false;
+          return;
+        }
+
+        restaurants.sort((a, b) => a.distance - b.distance);
+        const pool = restaurants.slice(0, Math.min(15, restaurants.length));
+        const chosen = pool[Math.floor(Math.random() * pool.length)];
+
+        displayResult(chosen);
+        launchConfetti();
+
+      } catch (err) {
+        console.error(err);
+        if (err.code === 1) {
+          showStatus('Location permission denied. Please allow location access.', 'error');
+        } else {
+          showStatus('Could not get location. Please try again.', 'error');
+        }
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function displayResult(r) {
+      hideStatus();
+      document.getElementById('res-name').textContent = r.name;
+      document.getElementById('res-distance').textContent = `~${r.distance.toFixed(1)} mi`;
+      document.getElementById('res-cuisine').textContent = r.cuisine.charAt(0).toUpperCase() + r.cuisine.slice(1);
+      document.getElementById('res-style').textContent = r.style === 'fast' ? 'Fast Food' : 'Sit-down';
+      document.getElementById('res-address').textContent = r.address;
+      document.getElementById('res-maps').href = `https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}`;
+      document.getElementById('result').classList.add('show');
+    }
+
+    // Register service worker if available
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
